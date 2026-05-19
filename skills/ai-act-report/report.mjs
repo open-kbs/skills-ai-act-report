@@ -75,15 +75,6 @@ async function getAIUsage() {
   }
 }
 
-async function getModelCatalog() {
-  try {
-    return await fetchJSON(`${PROJECT_API}/ai/models`);
-  } catch (e) {
-    console.error(`Warning: Could not fetch model catalog: ${e.message}`);
-    return { models: [] };
-  }
-}
-
 function scanComplianceArtifacts() {
   const artifacts = {
     aiActSkill: false,
@@ -166,11 +157,7 @@ async function main() {
   console.error(`Collecting AI Act compliance data for project ${PROJECT_ID}...`);
   console.error(`Period: last ${days} days`);
 
-  const [usage, catalog] = await Promise.all([
-    getAIUsage(),
-    getModelCatalog(),
-  ]);
-
+  const usage = await getAIUsage();
   const artifacts = scanComplianceArtifacts();
   const functions = listProjectFunctions();
 
@@ -182,7 +169,6 @@ async function main() {
       toolVersion: '1.0.0',
     },
     aiUsage: usage,
-    modelCatalog: catalog.models || catalog,
     complianceArtifacts: artifacts,
     projectFunctions: functions,
   };
