@@ -19,9 +19,32 @@ import path from 'path';
 import { execSync } from 'child_process';
 
 const PROJECT_API = 'https://project.openkbs.com';
-const PROJECT_ID = process.env.OPENKBS_PROJECT_ID;
-const API_KEY = process.env.OPENKBS_API_KEY;
 const PROJECT_DIR = process.env.OPENKBS_PROJECT_DIR || process.cwd();
+const HOME = process.env.HOME || '/home/user';
+
+function resolveCredentials() {
+  let projectId = process.env.OPENKBS_PROJECT_ID;
+  let apiKey = process.env.OPENKBS_API_KEY;
+
+  if (projectId && apiKey) return { projectId, apiKey };
+
+  const jwtPath = path.join(HOME, '.openkbs', 'projectJWT');
+  if (!fs.existsSync(jwtPath)) return { projectId, apiKey };
+
+  try {
+    const jwt = fs.readFileSync(jwtPath, 'utf-8').trim();
+    if (!jwt) return { projectId, apiKey };
+    apiKey = apiKey || jwt;
+    if (!projectId) {
+      const payload = JSON.parse(Buffer.from(jwt.split('.')[1], 'base64url').toString());
+      projectId = payload.projectId || payload.sub;
+    }
+  } catch {}
+
+  return { projectId, apiKey };
+}
+
+const { projectId: PROJECT_ID, apiKey: API_KEY } = resolveCredentials();
 
 const args = process.argv.slice(2);
 const daysIdx = args.indexOf('--days');
@@ -30,8 +53,8 @@ const outIdx = args.indexOf('--output');
 const outputPath = outIdx !== -1 ? args[outIdx + 1] : 'ai-act-report-data.json';
 
 if (!PROJECT_ID || !API_KEY) {
-  console.error('Error: OPENKBS_PROJECT_ID and OPENKBS_API_KEY must be set.');
-  console.error('Run this inside an OpenKBS Studio container or set the env vars manually.');
+  console.error('Error: Could not resolve project credentials.');
+  console.error('Checked: OPENKBS_PROJECT_ID/OPENKBS_API_KEY env vars and ~/.openkbs/projectJWT');
   process.exit(1);
 }
 
